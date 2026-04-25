@@ -11,7 +11,7 @@ import io
 
 # "glitchvideoeditor" / "glitchvideoeffect
 # 定义根目录
-BASE_DIR = r"D:\ui2code\InteractionSequence\data_process\output\glitchvideoeditor"
+BASE_DIR = r"D:\ui2code\InteractionSequence\data\com"
 
 
 import networkx as nx
@@ -378,5 +378,5 @@ def run_single_app(app_path):
 
 if __name__ == "__main__":
     # run_all_apps()
-    path = r"D:\ui2code\InteractionSequence\data_process\output\com\jiffy"
+    path = r"D:\ui2code\InteractionSequence\data\com\jiffy"
     run_single_app(path)

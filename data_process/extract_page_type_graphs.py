@@ -617,7 +617,13 @@ def build_outputs(app_dir, utg_data, n_key, e_key, out_dir):
 def main():
     # glitchvideoeditor/glitchvideoeffect
     # com/jiffy,musicplayer,valleythreesixfive
-    app_dir = (Path(__file__).resolve().parent / "output" / "com" / "jiffy").resolve()
+
+    # app_classification_lists = ["com.aptener.bluarmor.app", "com.freetymekiyan.apas",
+    #                             "com.hashmusic.musicplayer","com.language.learnspainish","com.magazinecloner.aestheticmedicine",
+    #                             "com.moymer.falou","com.nordicusability.jiffy",
+    #                             "glitchvideoeditor.videoeffects.glitchvideoeffect", "science.brief.app",
+    #                             "thecouponsapp.coupon" ]
+    app_dir = r"D:\ui2code\InteractionSequence\data\com\jiffy"
     
     utg_path = app_dir / "utg.json"
     out_dir = app_dir
