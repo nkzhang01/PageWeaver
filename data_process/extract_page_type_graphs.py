@@ -614,44 +614,93 @@ def build_outputs(app_dir, utg_data, n_key, e_key, out_dir):
     }
 
 
+def detect_utg_path(app_dir):
+    for name in ("utg.json", "utg.js"):
+        p = app_dir / name
+        if p.exists() and p.is_file():
+            return p
+    return None
+
+
+def collect_app_dirs(data_root, app_classification_lists):
+    app_dirs = []
+    for cls in app_classification_lists:
+        cls_dir = data_root / str(cls)
+        if not cls_dir.exists() or not cls_dir.is_dir():
+            continue
+        for app_dir in sorted([p for p in cls_dir.iterdir() if p.is_dir()], key=lambda x: x.name):
+            utg_path = detect_utg_path(app_dir)
+            if utg_path is None:
+                continue
+            app_dirs.append((str(cls), app_dir, utg_path))
+    return app_dirs
+
+
 def main():
-    # glitchvideoeditor/glitchvideoeffect
-    # com/jiffy,musicplayer,valleythreesixfive
+    # app_classification_lists are type directories under data/
+    app_classification_lists = [
+        "com", "a2z", "app", "br", "co", "de", "dogcat", "drzio", "english",
+        "fr", "freemusic", "glitchvideoeditor", "hk", "in", "ir", "is", "it",
+        "media", "order", "org", "ott", "sk", "textmessages", "zehitech",
+    ]
+    # category = app_classification_lists[0]
+    category = "ua"
+    app_lists = ["parental_control"]
+    data_root = Path(r"D:\ui2code\InteractionSequence\data")
 
-    # app_classification_lists = ["com.aptener.bluarmor.app", "com.freetymekiyan.apas",
-    #                             "com.hashmusic.musicplayer","com.language.learnspainish","com.magazinecloner.aestheticmedicine",
-    #                             "com.moymer.falou","com.nordicusability.jiffy",
-    #                             "glitchvideoeditor.videoeffects.glitchvideoeffect", "science.brief.app",
-    #                             "thecouponsapp.coupon" ]
-    app_dir = r"D:\ui2code\InteractionSequence\data\com\jiffy"
-    
-    utg_path = app_dir / "utg.json"
-    out_dir = app_dir
-    # out_dir = app_dir / "page_type_graphs"
-    out_dir.mkdir(parents=True, exist_ok=True)
+    if not data_root.exists() or not data_root.is_dir():
+        raise FileNotFoundError(f"data root does not exist: {data_root}")
 
-    if not app_dir.exists():
-        raise FileNotFoundError(f"app_dir does not exist: {app_dir}")
-    if not utg_path.exists():
-        raise FileNotFoundError(f"utg file does not exist: {utg_path}")
+    app_entries = []
+    category_dir = data_root / str(category)
+    if not category_dir.exists() or not category_dir.is_dir():
+        raise FileNotFoundError(f"category dir does not exist: {category_dir}")
 
-    data = load_utg(utg_path)
-    n_key, e_key = detect_schema(data)
+    for app_name in app_lists:
+        app_dir = category_dir / str(app_name)
+        if not app_dir.exists() or not app_dir.is_dir():
+            print(f"[SKIP] {category}/{app_name}: app dir not found")
+            continue
+        utg_path = detect_utg_path(app_dir)
+        if utg_path is None:
+            print(f"[SKIP] {category}/{app_name}: utg.json/utg.js not found")
+            continue
+        app_entries.append((str(category), app_dir, utg_path))
 
-    result = build_outputs(
-        app_dir=app_dir,
-        utg_data=data,
-        n_key=n_key,
-        e_key=e_key,
-        out_dir=out_dir,
+    if not app_entries:
+        print("No target apps with utg.json/utg.js found under the given category/app_lists.")
+        return
+
+    ok_count = 0
+    fail_count = 0
+    for cls, app_dir, utg_path in app_entries:
+        try:
+            out_dir = app_dir
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+            data = load_utg(utg_path)
+            n_key, e_key = detect_schema(data)
+            result = build_outputs(
+                app_dir=app_dir,
+                utg_data=data,
+                n_key=n_key,
+                e_key=e_key,
+                out_dir=out_dir,
+            )
+            ok_count += 1
+            print(
+                f"[OK] {cls}/{app_dir.name} | schema={n_key}/{e_key} | "
+                f"page_type_count={result['page_type_count']} | "
+                f"intra_subgraph_count={result['intra_graph_count']} | "
+                f"inter_transition_edge_count={result['inter_edge_count']}"
+            )
+        except Exception as e:
+            fail_count += 1
+            print(f"[FAIL] {cls}/{app_dir.name}: {e}")
+
+    print(
+        f"Done. total={len(app_entries)}, success={ok_count}, fail={fail_count}, data_root={data_root}"
     )
-
-    print(f"UTG: {utg_path}")
-    print(f"schema: {n_key}/{e_key}")
-    print(f"page_type_count: {result['page_type_count']}")
-    print(f"intra_subgraph_count: {result['intra_graph_count']}")
-    print(f"inter_transition_edge_count: {result['inter_edge_count']}")
-    print(f"output_dir: {result['out_dir']}")
 
 
 if __name__ == "__main__":

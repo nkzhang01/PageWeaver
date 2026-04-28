@@ -11,7 +11,7 @@ import io
 
 # "glitchvideoeditor" / "glitchvideoeffect
 # 定义根目录
-BASE_DIR = r"D:\ui2code\InteractionSequence\data\com"
+BASE_DIR = r"D:\ui2code\InteractionSequence\data"
 
 
 import networkx as nx
@@ -350,15 +350,26 @@ def process_app_package(pkg_path, pkg_name):
     # generate_full_utg_html(master_nodes, master_edges, output_master_html, app_name=pkg_name)
 
 def run_all_apps():
-    """遍历 com 目录处理每个 App"""
+    """遍历目录处理每个 App"""
+
+
+    app_classification_lists = [
+        "com", "a2z", "app", "br", "co", "de", "dogcat", "drzio", "english",
+        "fr", "freemusic", "glitchvideoeditor", "hk", "in", "ir", "is", "it",
+        "media", "order", "org", "ott", "sk", "textmessages", "zehitech",
+    ]   
+
+
     com_root = Path(BASE_DIR)
-    if not com_root.exists():
-        print(f"Error: 根目录不存在 {BASE_DIR}")
-        return
-        
-    for item in com_root.iterdir():
-        if item.is_dir():
-            process_app_package(item, item.name)
+
+    for category in app_classification_lists:
+        category_dir = com_root / str(category)
+        if not category_dir.exists() or not category_dir.is_dir():
+            print(f"[SKIP] {category}: category dir not found")
+            continue
+        for item in category_dir.iterdir():
+            if item.is_dir():
+                process_app_package(item, item.name)
 
 
 
@@ -377,6 +388,6 @@ def run_single_app(app_path):
 
 
 if __name__ == "__main__":
-    # run_all_apps()
-    path = r"D:\ui2code\InteractionSequence\data\com\jiffy"
-    run_single_app(path)
+    run_all_apps()
+    # path = r"D:\ui2code\InteractionSequence\data\com\jiffy"
+    # run_single_app(path)

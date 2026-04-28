@@ -8,16 +8,17 @@ import numpy as np
 from PIL import Image
 
 
-INPUT_PACKAGE_PATH = Path(__file__).resolve().parent / "mobileViewData"
-OUTPUT_ROOT_PATH = INPUT_PACKAGE_PATH.parent / "output"
+INPUT_PACKAGE_PATH = r"D:\ui2code\InteractionSequence\mobileViewData"
+OUTPUT_ROOT_PATH = r"D:\ui2code\InteractionSequence\data"
 # Optional: set to a package directory name to process only one package.
 # Example: "com.nordicusability.jiffy"
-ONLY_PACKAGE_NAME = "glitchvideoeditor.videoeffects.glitchvideoeffect"
+ONLY_PACKAGE_NAME = None
 # Optional: when processing a single package, set explicit crop size [top, bottom].
 # Example: [100, 200]
-ONLY_PACKAGE_CROP_SIZE = [0,560]
+ONLY_PACKAGE_CROP_SIZE = None
 UTG_PREFIX = "var utg = \n"
 IMAGE_EXTS = {".png", ".jpg", ".jpeg"}
+SELECTED_DIR_PREFIX = "selected_002_5990_15_19"
 
 
 def load_utg(utg_path):
@@ -45,6 +46,17 @@ def unique_keep_order(items):
             continue
         seen.add(item)
         out.append(item)
+    return out
+
+
+def natural_sort_key(name):
+    parts = re.split(r"(\d+)", str(name))
+    out = []
+    for p in parts:
+        if p.isdigit():
+            out.append(int(p))
+        else:
+            out.append(p.lower())
     return out
 
 
@@ -96,8 +108,38 @@ def collect_package_entries(package_path):
             }
         ]
 
-    # Case 2: package_path is mobileViewData root, collect direct child packages.
-    for child in sorted(package_path.iterdir(), key=lambda p: p.name):
+    # Case 2: package_path is mobileViewData root with selected_* buckets.
+    selected_buckets = [
+        p
+        for p in sorted(package_path.iterdir(), key=lambda x: natural_sort_key(x.name))
+        if p.is_dir() and p.name.startswith(SELECTED_DIR_PREFIX)
+    ]
+    for bucket in selected_buckets:
+        for child in sorted(bucket.iterdir(), key=lambda p: natural_sort_key(p.name)):
+            if not child.is_dir():
+                continue
+            if ONLY_PACKAGE_NAME and child.name != ONLY_PACKAGE_NAME:
+                continue
+            if not (child / "states").is_dir():
+                continue
+            if detect_source_utg_path(child) is None:
+                continue
+            pkg_type, app_name = split_package_type_and_app_name(child.name)
+            entries.append(
+                {
+                    "package_dir": child.resolve(),
+                    "package_name": child.name,
+                    "package_type": pkg_type,
+                    "app_name": app_name,
+                    "selected_bucket": bucket.name,
+                }
+            )
+
+    # Backward compatibility: if no selected_* bucket exists, collect direct child packages.
+    if entries:
+        return entries
+
+    for child in sorted(package_path.iterdir(), key=lambda p: natural_sort_key(p.name)):
         if not child.is_dir():
             continue
         if ONLY_PACKAGE_NAME and child.name != ONLY_PACKAGE_NAME:
@@ -113,6 +155,7 @@ def collect_package_entries(package_path):
                 "package_name": child.name,
                 "package_type": pkg_type,
                 "app_name": app_name,
+                "selected_bucket": "",
             }
         )
     return entries
@@ -150,6 +193,36 @@ def resolve_image_path(app_dir, image_rel, node_id):
         if c.exists() and c.is_file():
             return c
     return None
+
+
+def get_states_first_image_height(app_dir):
+    states_dir = app_dir / "states"
+    if not states_dir.exists() or not states_dir.is_dir():
+        return None, ""
+
+    candidates = [
+        p for p in states_dir.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_EXTS
+    ]
+    if not candidates:
+        return None, ""
+
+    candidates = sorted(candidates, key=lambda p: natural_sort_key(p.name))
+    first_img = candidates[0]
+    try:
+        with Image.open(first_img) as img_raw:
+            _, h = img_raw.size
+        return int(h), first_img.name
+    except Exception:
+        return None, first_img.name
+
+
+def infer_crop_by_first_states_image(app_dir):
+    h, first_img_name = get_states_first_image_height(app_dir)
+    if h == 2340:
+        return 70, 560, {"mode": "fixed_by_first_states_image_height", "first_image": first_img_name, "first_image_height": h}
+    if h == 1920:
+        return 70, 140, {"mode": "fixed_by_first_states_image_height", "first_image": first_img_name, "first_image_height": h}
+    return None, None, {"mode": "height_not_matched", "first_image": first_img_name, "first_image_height": h}
 
 
 def estimate_crop_parameters(sample_paths):
@@ -748,8 +821,8 @@ def process_app(
 
 
 def main():
-    package_path = INPUT_PACKAGE_PATH.resolve()
-    output_root = OUTPUT_ROOT_PATH.resolve()
+    package_path = Path(INPUT_PACKAGE_PATH).resolve()
+    output_root = Path(OUTPUT_ROOT_PATH).resolve()
     if not package_path.exists():
         raise FileNotFoundError(f"package path not found: {package_path}")
     output_root.mkdir(parents=True, exist_ok=True)
@@ -765,47 +838,65 @@ def main():
     all_reports = []
     package_list = []
     package_crop_size_list = []
+    selected_bucket_list = []
 
     for entry in package_entries:
         app_dir = entry["package_dir"]
         pkg_type = entry["package_type"]
         app_name = entry["app_name"]
         package_name = entry["package_name"]
+        selected_bucket = entry.get("selected_bucket", "")
         try:
+            auto_top, auto_bottom, auto_meta = infer_crop_by_first_states_image(app_dir)
             output_app_dir = output_root / pkg_type / app_name
             use_single_override = has_single_crop_override and (
                 (ONLY_PACKAGE_NAME and package_name == ONLY_PACKAGE_NAME)
                 or (len(package_entries) == 1)
             )
+            crop_top = single_override_top if use_single_override else auto_top
+            crop_bottom = single_override_bottom if use_single_override else auto_bottom
             report = process_app(
                 app_dir=app_dir,
                 output_app_dir=output_app_dir,
-                fixed_crop_top=single_override_top if use_single_override else None,
-                fixed_crop_bottom=single_override_bottom if use_single_override else None,
+                fixed_crop_top=crop_top,
+                fixed_crop_bottom=crop_bottom,
                 package_type=pkg_type,
                 app_name=app_name,
                 remove_duplicate_images=False,
             )
+            if not use_single_override and auto_top is not None and auto_bottom is not None:
+                report["crop_meta"]["mode"] = "fixed_by_first_states_image_height"
+                report["crop_meta"]["first_image"] = auto_meta.get("first_image", "")
+                report["crop_meta"]["first_image_height"] = auto_meta.get("first_image_height", None)
+            elif not use_single_override and (auto_top is None or auto_bottom is None):
+                report["crop_meta"]["first_image"] = auto_meta.get("first_image", "")
+                report["crop_meta"]["first_image_height"] = auto_meta.get("first_image_height", None)
+                report["crop_meta"]["height_rule_applied"] = False
+
+            report["selected_bucket"] = selected_bucket
             all_reports.append(report)
             package_list.append(package_name)
             package_crop_size_list.append([report["crop_top"], report["crop_bottom"]])
+            if selected_bucket:
+                selected_bucket_list.append(selected_bucket)
             print(
-                f"[OK] {package_name} -> {pkg_type}/{app_name}: nodes {report['source_node_count']} -> {report['new_node_count']}, "
+                f"[OK] {package_name} ({selected_bucket or 'direct'}) -> {pkg_type}/{app_name}: nodes {report['source_node_count']} -> {report['new_node_count']}, "
                 f"edges {report['source_edge_count']} -> {report['new_edge_count']}, "
                 f"dedup_groups={report['dedup_group_count']}, "
                 f"crop=({report['crop_top']},{report['crop_bottom']})"
             )
         except Exception as e:
-            print(f"[FAIL] {package_name}: {e}")
+            print(f"[FAIL] {package_name} ({selected_bucket or 'direct'}): {e}")
 
     summary = {
         "package_path": str(package_path),
         "output_root": str(output_root),
         "app_classification_list": sorted(unique_keep_order([x["package_type"] for x in package_entries])),
+        "selected_buckets": sorted(unique_keep_order(selected_bucket_list)),
         "package_list": package_list,
         "package_crop_size_list": package_crop_size_list,
-        "output_structure": "output/<package_type>/<app_name>/",
-        "crop_mode": "single_fixed_override" if has_single_crop_override else "auto_per_package",
+        "output_structure": "output/<package_type>/<app_name>/ (no selected_* wrapper)",
+        "crop_mode": "single_fixed_override_or_first_image_height_rule",
         "only_package_name": ONLY_PACKAGE_NAME,
         "only_package_crop_size": ONLY_PACKAGE_CROP_SIZE,
         "processed_app_count": len(all_reports),
