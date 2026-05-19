@@ -12,10 +12,14 @@ INPUT_PACKAGE_PATH = r"D:\ui2code\InteractionSequence\mobileViewData"
 OUTPUT_ROOT_PATH = r"D:\ui2code\InteractionSequence\data"
 # Optional: set to a package directory name to process only one package.
 # Example: "com.nordicusability.jiffy"
-ONLY_PACKAGE_NAME = None
+# ONLY_PACKAGE_NAME = "glitchvideoeditor.videoeffects.glitchvideoeffect"
+# "D:\ui2code\InteractionSequence\mobileViewData\com.singhealth.healthbuddy"
+ONLY_PACKAGE_NAME = "com.singhealth.healthbuddy"
+# ONLY_PACKAGE_NAME = None
 # Optional: when processing a single package, set explicit crop size [top, bottom].
 # Example: [100, 200]
-ONLY_PACKAGE_CROP_SIZE = None
+ONLY_PACKAGE_CROP_SIZE = [0,560]
+# ONLY_PACKAGE_CROP_SIZE = None
 UTG_PREFIX = "var utg = \n"
 IMAGE_EXTS = {".png", ".jpg", ".jpeg"}
 SELECTED_DIR_PREFIX = "selected_002_5990_15_19"
@@ -465,6 +469,19 @@ def edge_has_non_empty_view_images(edge):
     return False
 
 
+def edge_has_scroll_event(edge):
+    events = edge.get("events")
+    if not isinstance(events, list) or not events:
+        return False
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
+        event_type = str(ev.get("event_type", "")).strip().lower()
+        if event_type == "scroll":
+            return True
+    return False
+
+
 def parse_edge_label_value(edge):
     label = edge.get("label")
     if label is None:
@@ -528,6 +545,82 @@ def build_actions(to_node_id):
     ]
 
 
+def keep_largest_directed_reachable_subgraph(nodes, edges, preferred_start_id=""):
+    node_ids = [str(n.get("id", "")).strip() for n in nodes if str(n.get("id", "")).strip()]
+    node_set = set(node_ids)
+    if not node_ids:
+        return nodes, edges, {
+            "selected_start_node_id": "",
+            "selected_start_source": "none",
+            "kept_reachable_node_count": 0,
+            "removed_unreachable_node_count": 0,
+            "removed_unreachable_edge_count": 0,
+            "removed_unreachable_node_ids_sample": [],
+        }
+
+    first_pos = {nid: i for i, nid in enumerate(node_ids)}
+    adj = {nid: [] for nid in node_ids}
+    for e in edges:
+        a = str(e.get("from", "")).strip()
+        b = str(e.get("to", "")).strip()
+        if a in node_set and b in node_set and a != b:
+            adj[a].append(b)
+
+    def _reachable_from(start_id):
+        visited = set()
+        stack = [start_id]
+        while stack:
+            cur = stack.pop()
+            if cur in visited:
+                continue
+            visited.add(cur)
+            for nxt in adj.get(cur, []):
+                if nxt not in visited:
+                    stack.append(nxt)
+        return visited
+
+    preferred = str(preferred_start_id or "").strip()
+    selected_start = ""
+    selected_source = "auto_max_reachable"
+
+    if preferred and preferred in node_set:
+        selected_start = preferred
+        selected_source = "preferred_start"
+        keep_set = _reachable_from(selected_start)
+    else:
+        best_start = ""
+        best_keep = set()
+        for nid in node_ids:
+            keep = _reachable_from(nid)
+            if (len(keep) > len(best_keep)) or (
+                len(keep) == len(best_keep) and first_pos.get(nid, 10**9) < first_pos.get(best_start, 10**9)
+            ):
+                best_start = nid
+                best_keep = keep
+        selected_start = best_start
+        keep_set = best_keep if best_keep else set(node_ids)
+
+    filtered_nodes = [n for n in nodes if str(n.get("id", "")).strip() in keep_set]
+    filtered_edges = []
+    for e in edges:
+        a = str(e.get("from", "")).strip()
+        b = str(e.get("to", "")).strip()
+        if a in keep_set and b in keep_set:
+            filtered_edges.append(e)
+
+    removed_node_ids = [nid for nid in node_ids if nid not in keep_set]
+    removed_edge_count = max(len(edges) - len(filtered_edges), 0)
+
+    return filtered_nodes, filtered_edges, {
+        "selected_start_node_id": selected_start,
+        "selected_start_source": selected_source,
+        "kept_reachable_node_count": len(keep_set),
+        "removed_unreachable_node_count": len(removed_node_ids),
+        "removed_unreachable_edge_count": removed_edge_count,
+        "removed_unreachable_node_ids_sample": removed_node_ids[:50],
+    }
+
+
 def process_app(
     app_dir,
     output_app_dir,
@@ -560,13 +653,18 @@ def process_app(
     source_edge_count = len(source_edges)
 
     # Step 1: remove edges whose view_images are empty/missing.
+    # Also remove edges containing event_type == "scroll".
     edges = []
     removed_empty_view_edge_ids = []
+    removed_scroll_edge_ids = []
     for edge in source_edges:
-        if edge_has_non_empty_view_images(edge):
-            edges.append(edge)
-        else:
+        if edge_has_scroll_event(edge):
+            removed_scroll_edge_ids.append(str(edge.get("id", "")))
+            continue
+        if not edge_has_non_empty_view_images(edge):
             removed_empty_view_edge_ids.append(str(edge.get("id", "")))
+            continue
+        edges.append(edge)
 
     # Step 2: remove nodes that have no remaining valid edges.
     connected_old_node_ids = set()
@@ -711,6 +809,8 @@ def process_app(
     edge_bucket = {}
     main_page_node_id = ""
     main_page_edge_label_value = float("inf")
+    removed_self_loop_edge_count = 0
+    removed_self_loop_edge_ids = []
     for edge in edges:
         old_from = str(edge.get("from", "")).strip()
         old_to = str(edge.get("to", "")).strip()
@@ -721,6 +821,10 @@ def process_app(
 
         new_from = old_to_new[old_from]
         new_to = old_to_new[old_to]
+        if new_from == new_to:
+            removed_self_loop_edge_count += 1
+            removed_self_loop_edge_ids.append(str(edge.get("id", "")))
+            continue
         key = (new_from, new_to)
 
         label_value = parse_edge_label_value(edge)
@@ -757,6 +861,17 @@ def process_app(
                 "actions": build_actions(new_to),
             }
         )
+
+    # Step 3: keep directed reachable subgraph from preferred main-page node.
+    # If preferred node is missing, fallback to the start node with maximum directed reachability.
+    new_nodes, new_edges, directed_meta = keep_largest_directed_reachable_subgraph(
+        new_nodes,
+        new_edges,
+        preferred_start_id=main_page_node_id,
+    )
+    main_page_node_id = directed_meta.get("selected_start_node_id", "")
+    if not main_page_node_id:
+        main_page_edge_label_value = float("inf")
 
     # Step 3: put main page node first in node list:
     # choose the "from" node of the smallest-label edge.
@@ -798,6 +913,22 @@ def process_app(
         "filtered_source_edge_count": len(edges),
         "removed_empty_view_image_edge_count": len(removed_empty_view_edge_ids),
         "removed_empty_view_image_edge_ids_sample": removed_empty_view_edge_ids[:50],
+        "removed_scroll_edge_count": len(removed_scroll_edge_ids),
+        "removed_scroll_edge_ids_sample": removed_scroll_edge_ids[:50],
+        "removed_self_loop_edge_count": removed_self_loop_edge_count,
+        "removed_self_loop_edge_ids_sample": removed_self_loop_edge_ids[:50],
+        "selected_start_node_id": directed_meta.get("selected_start_node_id", ""),
+        "selected_start_source": directed_meta.get("selected_start_source", ""),
+        "kept_reachable_node_count": directed_meta.get("kept_reachable_node_count", 0),
+        "removed_unreachable_node_count": directed_meta.get("removed_unreachable_node_count", 0),
+        "removed_unreachable_edge_count": directed_meta.get("removed_unreachable_edge_count", 0),
+        "removed_unreachable_node_ids_sample": directed_meta.get("removed_unreachable_node_ids_sample", []),
+        # Backward-compatible keys (now mapped to directed reachability filtering stats).
+        "connectivity_component_count_before_filter": 0,
+        "kept_largest_component_node_count": directed_meta.get("kept_reachable_node_count", 0),
+        "removed_disconnected_node_count": directed_meta.get("removed_unreachable_node_count", 0),
+        "removed_disconnected_edge_count": directed_meta.get("removed_unreachable_edge_count", 0),
+        "removed_disconnected_node_ids_sample": directed_meta.get("removed_unreachable_node_ids_sample", []),
         "removed_node_by_edge_filter_count": removed_node_by_edge_filter_count,
         "main_page_node_id": main_page_node_id,
         "main_page_edge_label_value": main_page_edge_label_value if main_page_node_id else None,
@@ -888,6 +1019,12 @@ def main():
         except Exception as e:
             print(f"[FAIL] {package_name} ({selected_bucket or 'direct'}): {e}")
 
+    processed_app_count = len(all_reports)
+    average_page_count_per_app = (
+        float(sum(int(r.get("new_node_count", 0)) for r in all_reports)) / float(processed_app_count)
+        if processed_app_count > 0 else 0.0
+    )
+
     summary = {
         "package_path": str(package_path),
         "output_root": str(output_root),
@@ -899,12 +1036,14 @@ def main():
         "crop_mode": "single_fixed_override_or_first_image_height_rule",
         "only_package_name": ONLY_PACKAGE_NAME,
         "only_package_crop_size": ONLY_PACKAGE_CROP_SIZE,
-        "processed_app_count": len(all_reports),
+        "processed_app_count": processed_app_count,
+        "average_page_count_per_app": average_page_count_per_app,
         "apps": all_reports,
     }
     summary_path = output_root / "utg_batch_process_summary.json"
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"summary: {summary_path}")
+    print(f"processed_app_count={processed_app_count}, average_page_count_per_app={average_page_count_per_app:.4f}")
 
 
 if __name__ == "__main__":

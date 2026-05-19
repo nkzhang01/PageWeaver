@@ -260,8 +260,8 @@ def process_app_package(pkg_path, pkg_name):
     pkg_root = Path(pkg_path)
     
     # 定义核心文件路径
-    inter_json_path = pkg_root / "inter_page_transition_graph.json"
-    intra_json_path = pkg_root / "intra_page_type_subgraphs.json"
+    inter_json_path = pkg_root / "inter_page_transition_graph_2.json"
+    intra_json_path = pkg_root / "intra_page_type_subgraphs_2.json"
     
     if not inter_json_path.exists() or not intra_json_path.exists():
         print(f"  [Error] 缺少核心 JSON 文件，跳过: {pkg_name}")
@@ -334,7 +334,7 @@ def process_app_package(pkg_path, pkg_name):
         print(f"  [成功添加跳转线] {fnid} -> {tnid}")
     
     # 步骤三：输出全量 HTML
-    output_master_html = pkg_root / f"{pkg_name}_Full_UTG.html"
+    output_master_html = pkg_root / f"{pkg_name}_Full_UTG_2.html"
 
     page_types = list(set([n['data']['parent'] for n in master_nodes if 'parent' in n['data']]))
     pos_map = calculate_clustered_layout(master_nodes, master_edges, page_types)
@@ -388,6 +388,6 @@ def run_single_app(app_path):
 
 
 if __name__ == "__main__":
-    run_all_apps()
-    # path = r"D:\ui2code\InteractionSequence\data\com\jiffy"
-    # run_single_app(path)
+    # run_all_apps()
+    path = r"D:\ui2code\InteractionSequence\data\com\aestheticmedicine"
+    run_single_app(path)
