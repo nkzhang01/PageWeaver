@@ -11,7 +11,6 @@ import httpx
 from openai import OpenAI
 from PIL import Image
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_ROOT = PROJECT_ROOT / "dataset"
 PROMPT_PATH = PROJECT_ROOT / "page_cluster" / "Prompt" / "page_cluster_prompt.txt"

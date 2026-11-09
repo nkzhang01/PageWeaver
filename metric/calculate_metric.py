@@ -21,7 +21,6 @@ from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
 from tqdm import tqdm
 
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_ROOT = PROJECT_ROOT / "dataset"
 OUTPUT_DIR = Path(__file__).resolve().parent / "generated_metrics"

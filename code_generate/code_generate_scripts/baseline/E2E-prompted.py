@@ -17,7 +17,6 @@ DATA_ROOT = PROJECT_ROOT / "dataset"
 OUTPUT_ROOT = PROJECT_ROOT / "results" / "code_results" / "baselines" / "E2E-prompted"
 STATE_PATH = OUTPUT_ROOT / "state.json"
 PROMPT_PATH = PROJECT_ROOT / "code_generate" / "utils" / "prompt_templates" / "Baselines-End2End" / "E2E-prompted.txt"
-MODEL_NAME = ""
 CATEGORY_FILTER = None
 APP_FILTER = None
 MAX_IMAGE_SIDE = 768
@@ -25,6 +24,7 @@ SLEEP_SECONDS = 0
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg")
 
 API_BASE = ""
+MODEL_NAME = ""
 API_KEY = ""
 
 

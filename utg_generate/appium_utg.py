@@ -26,7 +26,6 @@ if str(REPO_ROOT) not in sys.path:
 
 from code_generate.utils.compiler.RN_compiler import run_gradlew_assemble
 
-
 from utg_generate.label_component import (
     OUTPUT_FILENAME as LABEL_OUTPUT_FILENAME,
     get_output_res_path,
