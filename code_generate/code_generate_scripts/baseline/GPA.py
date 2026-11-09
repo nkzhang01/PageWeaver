@@ -118,7 +118,7 @@ def page_subgraph_dir(app_classification, app_name, kind):
 
 def get_cluster_page_list(app_classification, app_name):
     """
-    获取聚类页面列表（不是每张截图），从 page_subgraphs/state/*.json 读取。
+    Read the clustered page list, rather than individual screenshots, from page_subgraphs/state/*.json.
     """
     state_dir = page_subgraph_dir(app_classification, app_name, "state")
     page_list = []

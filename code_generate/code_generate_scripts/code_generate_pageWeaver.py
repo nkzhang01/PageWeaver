@@ -118,7 +118,7 @@ def page_subgraph_dir(app_classification, app_name, kind):
 
 def get_cluster_page_list(app_classification, app_name):
     """
-    获取聚类页面列表（不是每张截图），从 page_subgraphs/state/*.json 读取。
+    Read the clustered page list, rather than individual screenshots, from page_subgraphs/state/*.json.
     """
     state_dir = page_subgraph_dir(app_classification, app_name, "state")
     page_list = []
@@ -178,7 +178,7 @@ def collect_screen_ids_from_graph(graph_path):
 
 def collect_graph_image_paths_for_page(app_classification, app_name, page_name, type):
     """
-    收集该聚类页面对应 PSG/PTG 子图中所有节点对应截图路径。
+    Collect screenshot paths for all nodes in the clustered page's PSG/PTG subgraph.
     """
     Graph_path = None
     if type == "PSG":
@@ -363,7 +363,7 @@ def get_entry_page_from_utg_component(app_classification, app_name):
 
 def get_page_list(app_classification, app_name):
     """
-    获取聚类页面列表
+    Get the clustered page list.
     """
     raw_pages = get_cluster_page_list(app_classification, app_name)
 
