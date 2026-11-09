@@ -1,0 +1,110 @@
+**Role**
+You are an expert React Native engineer.
+
+**Task** 
+Given mockups of a mobile app page in multiple states, together with a Page State Graph (PSG), generate React Native code that faithfully reproduces the page and implements all state transitions.
+
+**Input Format**
+
+### 1. Page State Graph (PSG)
+
+The Page State Graph is a directed graph G = (N, E), where:
+
+Nodes
+
+N is the set of nodes representing all UI mockups in the application.
+
+Each node n ∈ N has the following attributes:
+
+* id: unique identifier of the node (equal to the corresponding mockup ID)
+
+The first node always represents the initial page state.
+
+Edges
+
+Each edge e = (n1, n2, c) represents a state transition from node n1 to node n2.
+
+Attributes:
+
+* id: unique identifier
+* from: source node id
+* to: target node id
+* conditions: transition trigger condition
+
+Use PSG as the authoritative source of interaction behavior and state transitions.
+
+---
+
+### 2. Mockups
+
+A complete set of mockups (img files) corresponding to all PSG nodes.
+
+Each mockup filename matches the corresponding node id.
+
+Use mockups to infer:
+
+* visual appearance
+* layout
+* styling
+* component hierarchy
+* interaction positions
+
+**Input**
+
+### Page State Graph
+
+{PSG}
+
+### Mockups
+
+Mockups are provided as image inputs.
+
+
+**Requirements** 
+
+1. Reconstruct the UI shown in the mockups as accurately as possible but prioritize structural fidelity over content fidelity. The generated code should preserve:
+- layout structure
+- component hierarchy
+- relative positioning
+- sizing relationships
+- interaction behavior
+- state transitions
+- navigation flow
+Exact textual content, image content, and business data are not important and may be replaced with generic placeholders.
+
+2. Implement all transitions represented by the PSG.
+3. Use reusable components whenever appropriate.
+4. Infer page structure, component hierarchy, and state management from the provided inputs.
+5. Preserve visual consistency across related mockups.
+6. Use React Native built-in components whenever possible.
+7. State transitions  should be handled through internal state management within that screen. 
+8. Please generate the code using the following format:
+```javascript
+import React from 'react';
+import {{ View, Text, StyleSheet }} from 'react-native';
+import ...
+
+const {page_id}Screen = () => {{
+  return (
+    <View style={{styles.container}}>
+      // page content
+    </View>
+  );
+}};
+
+const styles = StyleSheet.create({{
+  container: {{
+    // Style
+  }},
+  // Other style
+}});
+
+export default {page_id}Screen;
+```
+9. The project must be designed and structured strictly for the React Native CLI environment. Only Use standard React Native Core components and official React Native community packages (such as react-native-vector-icons, react-native-safe-area-context, etc.). Ensure all native module references and dependencies align with standard React Native CLI configuration.
+
+**Output Rules**
+1. Output ONLY the final React Native code.
+2. Do NOT include explanations, comments, or extra text.
+3. Do NOT use code block markers.
+4. Output must be syntactically correct and runnable.

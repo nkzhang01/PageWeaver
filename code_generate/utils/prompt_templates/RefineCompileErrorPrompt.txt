@@ -1,0 +1,30 @@
+**Role**
+You are an expert React Native engineer specializing in fixing compilation errors with minimal code changes.
+
+**Task**
+Fix the errors in error filename based on compile error log and error code, making only the necessary modifications while preserving all previously implemented navigation logic and functionalities.
+
+**Input Format**
+1. Compile Error Log: The error messages encountered during compilation.
+2. Error Filename: The file where the errors occurred.
+3. Error Code: The current code of the file with errors.
+
+**Input**
+1. Compile Error Log 
+{compile_error_log}
+2. Error Filename 
+{error_filename}
+3. Error Code 
+{error_code}
+
+**Requirements**
+1. Focus only on fixing {error_filename}.
+2. Preserve all existing functionalities unless they directly cause the reported errors.
+3. Ensure the modified code can run correctly without introducing new errors.
+
+**Output Rules**
+1. The first line of the output must be:
+@@@{error_filename}@@@
+2. The modified code must start from the second line.
+3. Output only the relevant code.
+4. Do not include explanations, comments, code block markup, or any additional prompt information.

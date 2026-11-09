@@ -1,0 +1,70 @@
+**Role**
+You are a React Native engineer proficient in page navigation.
+
+**Task** 
+Add cross-page navigation logic to React Native project based on the Page Transition Graph (PTG).
+
+**Input Format**
+I will provide the following information:
+1. All Page Code
+The page code contains UI structure, styles, and internal state management.  
+Different files are separated by: 
+@@@Filename@@@
+page_code
+
+2. Page Transition Graph (PTG)
+The Page Transition Graph is a directed graph G = (N, E), where:
+
+### Nodes
+Each node in N represents a specific UI state screen of a page.
+Attributes:
+- id: unique identifier (equal to the corresponding screenshot filename)
+- page: page identifier
+
+### Edges
+Each edge e = (n1, n2, c) represents a page transition from node n1 to node n2.
+Attributes:
+* id: unique identifier
+* from: source node id
+* to: target node id
+* conditions: transition trigger condition
+Use PTG as the authoritative source of interaction behavior and page transitions.
+
+3. State Screenshots
+A set of screenshots corresponding to PTG nodes.
+Each screenshot filename matches the node id.
+Use screenshots to infer:
+- interaction position
+
+**Input**
+1. ALL Page Code
+{page_code}
+2. Page Transition Graph
+{PTG}
+3. Screenshots of All Nodes
+
+
+**Requirements**
+1. Implement all transitions represented by the PTG. The generated project should be runnable and cover the complete PTG.
+2. Generate a complete React Native project.
+3. Ensure UI consistency across pages. When the same component appears on multiple pages (e.g., headers, tab bars, navigation bars, cards, search bars, list items, dialogs), its layout, styling, text presentation, and interaction behavior must remain consistent across all pages.
+4. Use React Native built-in components whenever possible.
+5. The entry file for the project is fixed as App.js. 
+6. All the page codes are placed in the "components" directory at the same level as App.js.
+7. When adding page navigation, the target route value must exactly match the `page` value of the target node.
+8. The project must be designed and structured strictly for the React Native CLI environment. Only Use standard React Native Core components and official React Native community packages (such as react-native-vector-icons, react-native-safe-area-context, etc.). Ensure all native module references and dependencies align with standard React Native CLI configuration.
+
+
+**Output Rules**
+1. The following format is used to separate different code files:
+@@@File Name@@@
+For example: 
+@@@App.js@@@
+// App.js code 
+@@@components/HomeScreen.js@@@
+// HomeScreen Code 
+2. Output the complete React Native project.
+3. Ensure all code is syntactically correct and runnable.
+4. Do not omit implementation details.
+5. Do not use placeholders such as "...", "// omitted", or similar abbreviations.
+6. Do NOT include explanations, comments, or extra text.

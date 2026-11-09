@@ -4,8 +4,13 @@ import re
 from pathlib import Path
 
 
-CLUSTER_RELATIVE_PATH = Path("Cluster_claude") / "baseline_Mockups.json"
-UTG_PROCESS_FILENAME = "UTG_process.json"
+CLUSTER_RELATIVE_PATH = Path("Cluster") / "page_cluster.json"
+UTG_PROCESS_FILENAME = "UTG.json"
+UTG_LABEL_FILENAME = "UTG_Label.json"
+DEFAULT_OUTPUT_SUBGRAPH_DIR_NAME = "page_subgraphs"
+DEFAULT_OUTPUT_PTG_FILENAME = "PTG.json"
+GT_OUTPUT_SUBGRAPH_DIR_NAME = "page_subgraphs_GT"
+GT_OUTPUT_PTG_FILENAME = "PTG_GT.json"
 
 
 def load_json(path: Path):
@@ -184,18 +189,22 @@ def pick_home_node_for_group(group_node_ids, edges, node_to_group, group_id):
     return scored[0][2], candidates
 
 
-def build_named_clusters(group_to_node_ids, edges, node_to_group):
+def build_named_clusters(group_to_node_ids, edges, node_to_group, entry_node_id=None):
     cluster_to_node_ids = {}
     node_to_cluster = {}
     cluster_home_map = {}
     cluster_candidates_map = {}
+    entry_node_id = str(entry_node_id or "").strip()
 
     for group_id, group_node_ids in group_to_node_ids.items():
         if not group_node_ids:
             continue
 
         home_node, candidates = pick_home_node_for_group(group_node_ids, edges, node_to_group, group_id)
-        cluster_name = normalize_mockup_id(home_node)
+        if entry_node_id and entry_node_id in group_node_ids:
+            cluster_name = normalize_mockup_id(entry_node_id)
+        else:
+            cluster_name = normalize_mockup_id(home_node)
         ordered_node_ids = [home_node] + [node_id for node_id in group_node_ids if node_id != home_node]
 
         cluster_to_node_ids[cluster_name] = ordered_node_ids
@@ -284,19 +293,118 @@ def build_app_ptg(node_by_id, node_to_cluster, edges, n_key, e_key):
     return {n_key: trans_nodes, e_key: trans_edges}
 
 
-def build_outputs_for_one_app(app_dir: Path):
-    cluster_path = app_dir / CLUSTER_RELATIVE_PATH
-    utg_process_path = app_dir / UTG_PROCESS_FILENAME
-    if not cluster_path.exists():
-        raise FileNotFoundError(f"Cluster file not found: {cluster_path}")
+def order_page_pairs_dfs(page_pairs, page_order=None, entry_page=None):
+    """Traverse undirected page pairs, keeping every pair once, including cycles.
+
+    Start at the entry page, then cover disconnected components in page order.
+    Visit neighbors in the order their pairs first appeared in the UTG edges.
+    """
+    page_order = page_order or {}
+    adjacency = {}
+    for page_pair in page_pairs:
+        page_a, page_b = page_pair
+        adjacency.setdefault(page_a, []).append((page_b, page_pair))
+        adjacency.setdefault(page_b, []).append((page_a, page_pair))
+
+    roots = sorted(adjacency, key=lambda page: (page_order.get(page, 10**9), page))
+    if entry_page in adjacency:
+        roots.remove(entry_page)
+        roots.insert(0, entry_page)
+
+    visited_pages = set()
+    visited_pairs = set()
+    ordered_pairs = []
+    for root in roots:
+        if root in visited_pages:
+            continue
+        visited_pages.add(root)
+        stack = [iter(adjacency[root])]
+        while stack:
+            item = next(stack[-1], None)
+            if item is None:
+                stack.pop()
+                continue
+            target, page_pair = item
+            if page_pair in visited_pairs:
+                continue
+            visited_pairs.add(page_pair)
+            ordered_pairs.append(page_pair)
+            if target not in visited_pages:
+                visited_pages.add(target)
+                stack.append(iter(adjacency[target]))
+
+    return ordered_pairs
+
+
+def build_pair_navigation_graphs(
+    node_by_id, node_to_cluster, edges, n_key, e_key, page_order=None, entry_page=None
+):
+    page_order = page_order or {}
+    pair_edges = {}
+    pair_node_ids = {}
+
+    for edge in edges:
+        source, target = get_edge_endpoints(edge)
+        if not source or not target:
+            continue
+
+        source_page = node_to_cluster.get(source)
+        target_page = node_to_cluster.get(target)
+        if not source_page or not target_page or source_page == target_page:
+            continue
+
+        ordered_pair = tuple(
+            sorted(
+                (source_page, target_page),
+                key=lambda page: (page_order.get(page, 10**9), page),
+            )
+        )
+        pair_edges.setdefault(ordered_pair, []).append(copy.deepcopy(edge))
+        pair_node_ids.setdefault(ordered_pair, []).extend([source, target])
+
+    pair_graphs = {}
+    for page_pair in order_page_pairs_dfs(pair_edges, page_order, entry_page):
+        graph_edges = pair_edges[page_pair]
+        graph_node_ids = unique_keep_order(pair_node_ids.get(page_pair, []))
+        graph_nodes = []
+        for node_id in graph_node_ids:
+            if node_id not in node_by_id:
+                continue
+            graph_nodes.append(build_node(node_by_id[node_id], node_to_cluster.get(node_id, "UNKNOWN_PAGE")))
+        pair_graphs[page_pair] = {n_key: graph_nodes, e_key: graph_edges}
+
+    return pair_graphs
+
+
+def pair_navigation_filename(page_a, page_b):
+    return f"{sanitize_filename(page_a)}_{sanitize_filename(page_b)}.json"
+
+
+def clear_json_files(directory: Path):
+    if not directory.exists():
+        return
+    for path in directory.glob("*.json"):
+        if path.is_file():
+            path.unlink()
+
+
+def build_outputs_from_cluster_maps(
+    app_dir: Path,
+    group_to_mockups,
+    mockup_to_group,
+    source_cluster_path: Path,
+    utg_process_path: Path,
+    output_subgraph_dir_name: str = DEFAULT_OUTPUT_SUBGRAPH_DIR_NAME,
+    output_ptg_filename: str = DEFAULT_OUTPUT_PTG_FILENAME,
+):
     if not utg_process_path.exists():
         raise FileNotFoundError(f"UTG_process.json not found: {utg_process_path}")
 
-    group_to_mockups, mockup_to_group = load_page_clusters(cluster_path)
     utg = load_json(utg_process_path)
     n_key, e_key = detect_schema(utg)
     nodes = utg.get(n_key, [])
     edges = utg.get(e_key, [])
+    entry_node_id = get_node_id(nodes[0]) if nodes else ""
 
     node_by_id, normalized_to_id = build_node_lookup(nodes)
     group_to_node_ids = resolve_group_node_ids(group_to_mockups, normalized_to_id)
@@ -305,13 +413,19 @@ def build_outputs_for_one_app(app_dir: Path):
         group_to_node_ids,
         edges,
         node_to_group,
+        entry_node_id=entry_node_id,
     )
 
-    out_root = app_dir / "page_subgraphs"
+    out_root = app_dir / output_subgraph_dir_name
     state_dir = out_root / "state"
     transition_dir = out_root / "transition"
+    pair_navigation_dir = out_root / "pair_navigation"
     state_items = []
     transition_items = []
+    pair_navigation_items = []
+
+    clear_json_files(state_dir)
+    clear_json_files(transition_dir)
 
     for cluster_name, cluster_node_ids in cluster_to_node_ids.items():
         if not cluster_node_ids:
@@ -349,15 +463,49 @@ def build_outputs_for_one_app(app_dir: Path):
 
     app_ptg = build_app_ptg(node_by_id, node_to_cluster, edges, n_key, e_key)
     app_ptg_path = out_root / "app_transition_graph.json"
-    root_ptg_path = app_dir / "PTG.json"
+    root_ptg_path = app_dir / output_ptg_filename
     write_json(app_ptg_path, app_ptg)
     write_json(root_ptg_path, app_ptg)
+
+    clear_json_files(pair_navigation_dir)
+    page_order = {page_name: index for index, page_name in enumerate(cluster_to_node_ids)}
+    pair_graphs = build_pair_navigation_graphs(
+        node_by_id,
+        node_to_cluster,
+        edges,
+        n_key,
+        e_key,
+        page_order=page_order,
+        entry_page=node_to_cluster.get(entry_node_id),
+    )
+    used_pair_filenames = set()
+    for (page_a, page_b), ppng in pair_graphs.items():
+        pair_file_name = pair_navigation_filename(page_a, page_b)
+        if pair_file_name in used_pair_filenames:
+            base = pair_file_name[:-5]
+            suffix = 2
+            while f"{base}_{suffix}.json" in used_pair_filenames:
+                suffix += 1
+            pair_file_name = f"{base}_{suffix}.json"
+        used_pair_filenames.add(pair_file_name)
+
+        ppng_path = pair_navigation_dir / pair_file_name
+        write_json(ppng_path, ppng)
+        pair_navigation_items.append(
+            {
+                "page_a": page_a,
+                "page_b": page_b,
+                "node_count": len(ppng[n_key]),
+                "edge_count": len(ppng[e_key]),
+                "graph_path": str(ppng_path),
+            }
+        )
 
     write_json(
         out_root / "page_state_subgraphs.json",
         {
             "app_dir": str(app_dir),
-            "source_cluster": str(cluster_path),
+            "source_cluster": str(source_cluster_path),
             "source_utg_process": str(utg_process_path),
             "schema": {"node_key": n_key, "edge_key": e_key},
             "page_count": len(state_items),
@@ -369,7 +517,7 @@ def build_outputs_for_one_app(app_dir: Path):
         out_root / "page_transition_graphs.json",
         {
             "app_dir": str(app_dir),
-            "source_cluster": str(cluster_path),
+            "source_cluster": str(source_cluster_path),
             "source_utg_process": str(utg_process_path),
             "schema": {"node_key": n_key, "edge_key": e_key},
             "page_count": len(transition_items),
@@ -383,14 +531,46 @@ def build_outputs_for_one_app(app_dir: Path):
         },
     )
 
+    write_json(
+        out_root / "page_pair_navigation_graphs.json",
+        {
+            "app_dir": str(app_dir),
+            "source_cluster": str(source_cluster_path),
+            "source_utg_process": str(utg_process_path),
+            "schema": {"node_key": n_key, "edge_key": e_key},
+            "pair_count": len(pair_navigation_items),
+            "items": pair_navigation_items,
+        },
+    )
+
     return {
         "page_count": len(state_items),
         "state_graph_count": len(state_items),
         "transition_graph_count": len(transition_items),
+        "pair_navigation_graph_count": len(pair_navigation_items),
         "app_ptg_node_count": len(app_ptg[n_key]),
         "app_ptg_edge_count": len(app_ptg[e_key]),
         "out_root": str(out_root),
     }
+
+
+def build_outputs_for_one_app(app_dir: Path):
+    cluster_path = app_dir / CLUSTER_RELATIVE_PATH
+    utg_process_path = app_dir / UTG_PROCESS_FILENAME
+    if not cluster_path.exists():
+        raise FileNotFoundError(f"Cluster file not found: {cluster_path}")
+
+    group_to_mockups, mockup_to_group = load_page_clusters(cluster_path)
+    return build_outputs_from_cluster_maps(
+        app_dir,
+        group_to_mockups,
+        mockup_to_group,
+        cluster_path,
+        utg_process_path,
+        DEFAULT_OUTPUT_SUBGRAPH_DIR_NAME,
+        DEFAULT_OUTPUT_PTG_FILENAME,
+    )
+
 
 
 def find_app_entries(data_root: Path):
@@ -405,7 +585,7 @@ def find_app_entries(data_root: Path):
 
 
 def main():
-    data_root = Path(__file__).resolve().parents[1] / "data_Find"
+    data_root = Path(__file__).resolve().parents[1] / "dataset"
     if not data_root.exists() or not data_root.is_dir():
         raise FileNotFoundError(f"data root does not exist: {data_root}")
 
@@ -426,6 +606,7 @@ def main():
                 f"[OK] {rel} | page_count={result['page_count']} | "
                 f"state_graph_count={result['state_graph_count']} | "
                 f"transition_graph_count={result['transition_graph_count']} | "
+                f"pair_navigation_graph_count={result['pair_navigation_graph_count']} | "
                 f"app_ptg_nodes={result['app_ptg_node_count']} | "
                 f"app_ptg_edges={result['app_ptg_edge_count']}"
             )

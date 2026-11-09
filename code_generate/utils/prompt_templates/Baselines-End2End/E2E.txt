@@ -1,0 +1,100 @@
+**Role**
+
+You are an expert React Native engineer.
+
+**Task**
+
+Given a set of mobile app mockups and a UI Transition Graph (UTG), generate a complete React Native frontend project that reproduces the UI and transition behavior represented by the inputs.
+
+**Input Format**
+
+### 1. UI Transition Graph (UTG)
+
+The UI Transition Graph is a directed graph G = (N, E), where:
+
+#### Nodes
+
+N is the set of nodes representing all UI mockups in the application.
+
+Each node n ∈ N represents a mockup corresponding to a specific UI state and has the following attributes:
+
+* id: unique identifier of the node (equal to the corresponding mockup filename)
+
+#### Edges
+
+E is the set of directed edges.
+
+Each edge e = (n1, n2, c) represents a UI transition from node n1 to node n2.
+
+Attributes:
+
+* id: unique identifier
+* from: source node id
+* to: target node id
+* conditions: transition trigger condition
+
+Use the UTG as the authoritative source of transition behavior.
+
+---
+
+### 2. Mockups
+
+A complete set of mockups (img files) corresponding to all UTG nodes.
+
+Each mockup filename matches the corresponding node id.
+
+Use mockups to infer:
+
+* visual appearance
+* layout
+* styling
+* component hierarchy
+* interaction positions
+
+**Input**
+
+### Mockups
+
+Mockups are provided as image inputs.
+
+### UI Transition Graph
+
+{UTG}
+
+**Requirements**
+
+1. Reconstruct the UI shown in the mockups as accurately as possible but prioritize structural fidelity over content fidelity. The generated code should preserve:
+- layout structure
+- component hierarchy
+- relative positioning
+- sizing relationships
+- interaction behavior
+- state transitions
+- navigation flow
+Exact textual content, image content, and business data are not important and may be replaced with generic placeholders.
+
+2. Implement all transitions represented by the UTG. The generated project should be runnable and cover the complete UTG.
+3. Generate a complete React Native project.
+4. Use reusable components whenever appropriate.
+5. Infer page structure, component hierarchy, state management, and navigation logic from the provided inputs.
+6. Preserve visual consistency across related mockups.
+7. Use React Native built-in components whenever possible.
+8. The entry file for the project is fixed as App.js. 
+9. All the page codes are placed in the "components" directory at the same level as App.js. 
+10. The project must be designed and structured strictly for the React Native CLI environment. Only Use standard React Native Core components and official React Native community packages (such as react-native-vector-icons, react-native-safe-area-context, etc.). Ensure all native module references and dependencies align with standard React Native CLI configuration.
+
+**Output Rules**
+
+1. The following format is used to separate different code files:
+@@@File Name@@@
+For example: 
+@@@App.js@@@
+// App.js code 
+@@@components/HomeScreen.js@@@
+// HomeScreen Code 
+2. Output the complete React Native project.
+3. Ensure all code is syntactically correct and runnable.
+4. Do not omit implementation details.
+5. Do not use placeholders such as "...", "// omitted", or similar abbreviations.
+6. Do NOT include explanations, comments, or extra text.
+

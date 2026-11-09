@@ -1,0 +1,67 @@
+**Role**
+You are a React Native engineer proficient in page navigation.
+
+**Task**
+Add page navigation logic to page pairs `{page_A}` and `{page_B}` using the Page-Pair Navigation Graph (PPNG).
+
+**Input Format**
+I will provide the following information:
+### 1. Page code for `{page_A}`.
+### 2. Page code for `{page_B}`.
+
+The page code includes the UI structure, styles, and internal state management.
+
+### 3. Page-Pair Navigation Graph (PPNG)
+The Page-Pair Navigation Graph is a directed graph G = (N, E), where:
+Nodes
+N is the set of UI mockup nodes that belong to the selected page pair.
+Each node n ∈ N has the following attributes:
+* id: unique identifier of the node (equal to the corresponding mockup ID)
+* page: page identifier
+
+Edges
+Each edge e = (n1, n2, c) represents a directed navigation transition from node n1 to node n2.
+Attributes:
+* id: unique identifier
+* from: source node id
+* to: target node id
+* conditions: transition trigger condition
+
+Use PPNG as the authoritative source of interaction behavior and directed navigation transitions.
+
+### 4. Mockups
+A complete set of mockups (img files) corresponding to all PPNG nodes.
+Each mockup filename matches the corresponding node id.
+Use mockups to infer:
+* interaction positions
+
+**Inputs**
+### 1. {page_A} page code
+{page_A_code}
+### 2. {page_B} page code
+{page_B_code}
+### 3. Page-Pair Navigation Graph
+{PPNG}
+### 4. Mockups
+Mockups are provided as image inputs.
+
+**Requirements**
+1. Implement all navigation represented by the PPNG. The generated page code should be runnable and cover the complete PPNG.
+2. Ensure UI consistency across pages. When the same component (e.g., header, tab bar, navigation bar, card, search bar, list item, dialog box) appears on a page, its layout, style, text rendering, and interactive behavior must remain consistent.
+3. Use React Native built-in components whenever possible.
+4. Do not modify existing state transitions or navigation logic. If `onPress` already exists, its original logic must be preserved, and new navigation logic must be added without breaking the original behavior.
+5. Only add necessary code to the navigation logic in the PPNG. Do not rewrite, delete, or extensively refactor unrelated page structures, styles, state management, or business logic.
+6. For each directed navigation edge in the PPNG, a corresponding interactive component must be found on the source page, and navigation logic to the target page must be added.
+7. When adding page navigation, the target route value must exactly match the `page` value of the target node.
+8. If the target page already uses props such as `initialState`, `initialNode`, `initialMode`, `initialTab`, `mode`, `tab`, `state`, `node`, or reads `route.params`, wire the navigation parameter to that existing mechanism instead of inventing unrelated parameter names.
+9. The project must be designed and structured strictly for the React Native CLI environment. Only Use standard React Native Core components and official React Native community packages (such as react-native-vector-icons, react-native-safe-area-context, etc.). Ensure all native module references and dependencies align with standard React Native CLI configuration.
+
+**Output Rules**
+1. Use the following format to output the page code file:
+@@@{page_A}@@@
+//{page_A} page code
+@@@{page_B}@@@
+//{page_B} page code
+2. Do NOT include explanations, comments, or extra text.
+3. Do NOT use code block markers.
+4. Output must be complete, syntactically correct and runnable.

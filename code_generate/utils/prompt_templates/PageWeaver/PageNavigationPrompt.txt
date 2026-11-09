@@ -1,0 +1,28 @@
+**Role**
+You are an expert React Native engineer specializing in application routing and React Navigation configurations.
+
+**Task**
+Please create a React Navigation configuration file named App.js for a React Native application.
+
+**Input Format**
+1. Page List: A list containing the page_id identifiers for each page in the application.
+2. Navigation Home: The specific page_id representing the application's initial homepage route.
+
+**Input**
+1. Page List
+{page_list}
+2. Navigation Home
+{nav_home}
+
+**Requirements**
+1. Each `<Stack.Screen>` name must match the corresponding Page Node id in {page_list}.
+2. Each screen component must be imported from the `./components` folder. The import name and filename must use the corresponding `page_id` from `{page_list}` followed by the `Screen` suffix, in the following format:
+import ExampleScreen from './components/ExampleScreen';
+where `Example` is replaced with the corresponding `page_id` from `{page_list}`, and the `Screen` suffix must be retained.
+3. Each screen component must be passed through the `component` prop of `<Stack.Screen>`.
+4. The initial route of `Stack.Navigator` must be set to {nav_home}.
+5. In `Stack.Navigator`, set `screenOptions={{ headerShown: false }}`.
+
+**Output Rules**
+1. Output ONLY he complete App.js code. 
+2. Do NOT include explanations, comments, or extra text.

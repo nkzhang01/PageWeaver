@@ -1,0 +1,102 @@
+**Role**
+
+You are an expert UI structure analysis and interface grounding engineer.
+
+**Task**
+
+Given a set of mobile app mockups, analyze their structural relationships and cluster them into PAGE-level groups and STATE-level variations.
+
+Your goal is to produce a hierarchical organization of the mockups that separates:
+- Different UI pages (global structural differences caused by navigation)
+- Different states within the same page (local interaction variations caused by state transition)
+
+**Input Format**
+
+### Mockups
+
+A complete set of UI mockups (image files).
+
+Each mockup filename is its unique identifier.
+
+Use mockups to infer:
+- layout structure
+- component hierarchy
+- navigation structure
+- interaction regions
+- UI state differences
+
+**Definitions**
+
+### 1. Page
+
+A PAGE represents a structurally distinct UI screen.
+
+Two mockups belong to different pages if they differ in:
+- global layout structure
+- primary UI components
+- navigation context (e.g., home vs profile vs settings)
+- overall screen organization
+
+Minor visual differences MUST NOT be treated as page differences.
+
+---
+
+### 2. State
+
+A STATE is a variation within the same page.
+
+States share the same global layout structure but differ in:
+- tab selection
+- modal/dialog visibility
+- expanded/collapsed components
+- filtering/sorting conditions
+- input or selection changes
+- dynamic content updates
+
+States MUST preserve the same page-level structure.
+
+**Input**
+
+### Mockups
+
+Mockups are provided as image inputs.
+
+**Requirements**
+
+1. Perform hierarchical clustering over all mockups into pages and states.
+2. Prioritize structural similarity over visual or content-level similarity.
+3. Do NOT over-split pages:
+   - Small layout shifts must NOT create new pages
+   - Only clear structural reorganization indicates a new page
+4. Each mockup MUST belong to exactly one state and one page.
+5. States MUST be strictly nested under pages (no cross-page states).
+6. Preserve consistency: mockups in the same page should share a stable layout skeleton.
+
+**Output**
+
+Return a structured JSON:
+
+{
+  "pages": [
+    {
+      "page_id": "P1",
+      "page_description": "short functional description of the page",
+      "states": [
+        {
+          "state_id": "P1-S1",
+          "mockup": "mockup_id_1",
+          "state_description": "description of this UI configuration"
+        }
+      ]
+    }
+  ]
+}
+
+
+**Output Constraints**
+
+1. Every mockup MUST appear exactly once.
+2. Each state MUST correspond to exactly one mockup.
+3. No duplication or omission of mockups.
+4. No additional fields outside the schema.
+5. Keep page/state identifiers compact and consistent.
