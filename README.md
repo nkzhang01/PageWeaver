@@ -25,7 +25,7 @@ The four generation methods are alternative experiments, not consecutive stages.
 
 ### Dataset
 
-Extract the dataset into the `dataset/` directory at the project root, so that app data is located at `dataset/<category>/<app>/`.
+Download the dataset from [Google Drive](https://drive.google.com/file/d/1EPaYvGaX7G3ptNVnnS-4i4aoG4S1I-eh/view?usp=drive_link), then extract it into the `dataset/` directory at the project root, so that app data is located at `dataset/<category>/<app>/`.
 
 ### Environment
 
