@@ -1,5 +1,5 @@
-代码正在整理当中，目前发布的是未整理版本。
+The code is currently being organized. The version available here has not yet been cleaned up.
 
-如有任何事情，请联系邮箱：z040406@outlook.com。
+For any inquiries, please contact z040406@outlook.com.
 
-数据集下载：[Google Drive](https://drive.google.com/file/d/1EPaYvGaX7G3ptNVnnS-4i4aoG4S1I-eh/view?usp=drive_link)。
+Download the dataset from [Google Drive](https://drive.google.com/file/d/1EPaYvGaX7G3ptNVnnS-4i4aoG4S1I-eh/view?usp=drive_link).
